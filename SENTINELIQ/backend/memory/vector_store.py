@@ -1,60 +1,32 @@
-import os
-os.environ['OPENAI_API_KEY'] = ""
-## Import some libraries
+
 from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import OpenAI
-from langchain.document_loaders import DirectoryLoader
-from langchain.document_loaders import TextLoader
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
+import os
+from dotenv import load_dotenv
 
-persist_directory="vector_db"
-## Load data
-def load_data_to_vectordb():
-    loader = DirectoryLoader("/content/new_articles/", glob = "./*.txt", loader_cls= TextLoader)
-    document = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 200)
-    text = text_splitter.split_documents(document)
-    
-    embedding = NVIDIAEmbeddings()
-    vectordb = Chroma.from_documents(documents=text,
-                                    embedding=embedding,
-                                    persist_directory=persist_directory)
-    # persiste the db to disk
-    vectordb.persist()
+load_dotenv()
 
-def retrive_data():
-    # Now we can load the persisted database from disk, and use it as normal.
-    vectordb = Chroma(persist_directory=persist_directory,
-                    embedding_function=embedding)
-    ## Make a retriever
-    retriever = vectordb.as_retriever()
-    docs = retriever.get_relevant_documents("How much money did Microsoft raise?")
-    retriever = vectordb.as_retriever(search_kwargs={"k": 2})
-    # retriever.search_type
-    # retriever.search_kwargs
-    # llm=OpenAI()
-    # # create the chain to answer questions
-    # qa_chain = RetrievalQA.from_chain_type(llm=OpenAI(),
-    #                                 chain_type="stuff",
-    #                                 retriever=retriever,
-    #                                 return_source_documents=True)
-# ## Cite sources
-# def process_llm_response(llm_response):
-#     print(llm_response['result'])
-#     print('\n\nSources:')
-#     for source in llm_response["source_documents"]:
-#         print(source.metadata['source'])
-#     # full example
-#     query = "How much money did Microsoft raise?"
-#     llm_response = qa_chain(query)
-#     process_llm_response(llm_response)
-#     # break it down
-#     query = "What is the news about Pando?"
-#     llm_response = qa_chain(query)
-#     process_llm_response(llm_response)
+PERSIST_DIR = "vector_db"  # local folder where ChromaDB saves data
 
+def get_embedding_model():
+    """
+    NVIDIA embeddings — uses your NVIDIA_API_KEY from .env
+    Model: nvidia/nv-embedqa-e5-v5 (best for code + text)
+    """
+    return NVIDIAEmbeddings(
+        model="nvidia/nv-embedqa-e5-v5",
+        api_key=os.getenv("NVIDIA_API_KEY")
+    )
 
-
+def get_vectordb():
+    """
+    Returns a live ChromaDB connection using NVIDIA embeddings.
+    Called by both ingest.py (to write) and retriever.py (to read).
+    """
+    embedding = get_embedding_model()
+    vectordb = Chroma(
+        persist_directory=PERSIST_DIR,
+        embedding_function=embedding,
+        collection_name="sentineliq_vulns"  # named collection
+    )
+    return vectordb
