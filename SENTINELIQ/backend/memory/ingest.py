@@ -8,7 +8,7 @@ import sqlite3, json, os
 
 DB_PATH = "database/vulnerabilities.db"
 
-# ── SQLite setup (run once) ──────────────────────────────────
+# ── SQLite setup (run once)
 def init_sqlite():
     os.makedirs("database", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)

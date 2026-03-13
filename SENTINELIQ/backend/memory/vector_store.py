@@ -18,15 +18,16 @@ def get_embedding_model():
         api_key=os.getenv("NVIDIA_API_KEY")
     )
 
-def get_vectordb():
-    """
-    Returns a live ChromaDB connection using NVIDIA embeddings.
-    Called by both ingest.py (to write) and retriever.py (to read).
-    """
-    embedding = get_embedding_model()
-    vectordb = Chroma(
-        persist_directory=PERSIST_DIR,
-        embedding_function=embedding,
-        collection_name="sentineliq_vulns"  # named collection
-    )
-    return vectordb
+import psycopg2
+from pgvector.psycopg2 import register_vector
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DB_URL = os.getenv("POSTGRES_URL")
+
+def get_connection():
+    conn = psycopg2.connect(DB_URL)
+    register_vector(conn)
+    return conn
